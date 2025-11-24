@@ -4,6 +4,8 @@ import sqlite3
 from datetime import datetime
 import subprocess
 import threading
+import sys
+import os
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend access
@@ -102,23 +104,23 @@ def run_prediction():
         try:
             result = subprocess.run(
                 [
-                    'python', 'main.py',
+                    sys.executable, 'main.py',  # ใช้ Python interpreter เดียวกัน
                     '--use-database',
                     '--db-url', 'sqlite:///sales_data.db'
                 ],
-                capture_output=True,
-                text=True,
-                timeout=300
+                cwd=os.path.dirname(os.path.abspath(__file__)),  # ตั้ง working directory
+                timeout=900,  # 15 minutes timeout
+                text=True
             )
             
             if result.returncode == 0:
                 prediction_status["last_run"] = datetime.now().isoformat()
                 prediction_status["error"] = None
             else:
-                prediction_status["error"] = result.stderr
+                prediction_status["error"] = f"Process exited with code {result.returncode}"
                 
         except subprocess.TimeoutExpired:
-            prediction_status["error"] = "Prediction timeout after 5 minutes"
+            prediction_status["error"] = "Prediction timeout after 15 minutes"
         except Exception as e:
             prediction_status["error"] = str(e)
         finally:
@@ -142,4 +144,18 @@ def health_check():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
 
 if __name__ == '__main__':
+    print("\n" + "="*60)
+    print("🚀 Sales Prediction API Server")
+    print("="*60)
+    print(f"✅ Backend API: http://localhost:5000")
+    print(f"📊 Health Check: http://localhost:5000/health")
+    print(f"🏪 Stores List: http://localhost:5000/stores")
+    print("="*60)
+    print("💡 To access the web interface:")
+    print("   1. Open a NEW terminal")
+    print("   2. Navigate to frontend folder: cd frontend")
+    print("   3. Run: python -m http.server 8000")
+    print("   4. Open browser: http://localhost:8000")
+    print("="*60 + "\n")
+    
     app.run(debug=False, host='0.0.0.0', port=5000)

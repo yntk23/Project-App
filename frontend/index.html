@@ -123,7 +123,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Sales Predictions Viewer</h1>
+        <h1>Sales Predictions</h1>
         
         <div class="filters">
             <label for="storeId">Store ID:</label>
@@ -272,7 +272,7 @@
                 } catch (error) {
                     console.error('Status check error:', error);
                 }
-            }, 2000);
+            }, 30000);
         }
         async function fetchPredictions() {
             const storeId = document.getElementById('storeId').value.trim();
