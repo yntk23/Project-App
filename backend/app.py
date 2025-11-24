@@ -2,11 +2,16 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
 from datetime import datetime
+import subprocess
+import threading
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend access
 
 DATABASE = 'sales_data.db'
+
+# Track running prediction status
+prediction_status = {"running": False, "last_run": None, "error": None}
 
 def get_db_connection():
     conn = sqlite3.connect(DATABASE)
@@ -57,9 +62,84 @@ def get_predictions():
     
     return jsonify(results)
 
+@app.route('/stores', methods=['GET'])
+def get_stores():
+    """Get list of all available store IDs"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT DISTINCT store_id 
+        FROM sales_data 
+        ORDER BY store_id
+    """)
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    stores = [row['store_id'] for row in rows]
+    return jsonify({"stores": stores, "total": len(stores)})
+
+@app.route('/run-prediction', methods=['POST'])
+def run_prediction():
+    """Trigger prediction script execution"""
+    global prediction_status
+    
+    if prediction_status["running"]:
+        return jsonify({
+            "status": "error",
+            "message": "Prediction is already running. Please wait."
+        }), 429
+    
+    data = request.get_json() or {}
+    store_id = data.get('store_id')
+    
+    def run_script():
+        global prediction_status
+        prediction_status["running"] = True
+        prediction_status["error"] = None
+        
+        try:
+            result = subprocess.run(
+                [
+                    'python', 'main.py',
+                    '--use-database',
+                    '--db-url', 'sqlite:///sales_data.db'
+                ],
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            
+            if result.returncode == 0:
+                prediction_status["last_run"] = datetime.now().isoformat()
+                prediction_status["error"] = None
+            else:
+                prediction_status["error"] = result.stderr
+                
+        except subprocess.TimeoutExpired:
+            prediction_status["error"] = "Prediction timeout after 5 minutes"
+        except Exception as e:
+            prediction_status["error"] = str(e)
+        finally:
+            prediction_status["running"] = False
+    
+    thread = threading.Thread(target=run_script)
+    thread.start()
+    
+    return jsonify({
+        "status": "started",
+        "message": "Prediction process started in background"
+    })
+
+@app.route('/prediction-status', methods=['GET'])
+def get_prediction_status():
+    """Check if prediction is running"""
+    return jsonify(prediction_status)
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)

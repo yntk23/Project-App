@@ -44,9 +44,44 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 14px;
         }
         .filters button:hover {
             background-color: #0056b3;
+        }
+        .filters button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background-color: #28a745;
+            margin-left: 10px;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+        }
+        select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 20px;
+            min-width: 150px;
+        }
+        .status-box {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status-running {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        .status-success {
+            background-color: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
         }
         table {
             width: 100%;
@@ -92,13 +127,19 @@
         
         <div class="filters">
             <label for="storeId">Store ID:</label>
-            <input type="text" id="storeId" placeholder="e.g., 112" value="112">
+            <select id="storeId">
+                <option value="">-- Select Store --</option>
+            </select>
             
             <label for="productCode">Product Code (optional):</label>
             <input type="text" id="productCode" placeholder="e.g., 98050138">
             
-            <button onclick="fetchPredictions()">Load Predictions</button>
+            <button onclick="fetchPredictions()" id="loadBtn">Load Predictions</button>
+            <button onclick="runPrediction()" id="runBtn" class="btn-primary">▶ Run Prediction</button>
+
         </div>
+
+        <div id="statusBox" style="display: none;"></div>
 
         <div id="error" class="error" style="display: none;"></div>
         <div id="loading" class="loading" style="display: none;">Loading...</div>
@@ -123,6 +164,116 @@
     <script>
         const API_URL = 'http://localhost:5000';
 
+        let statusCheckInterval = null;
+
+        // Load stores on page load
+        async function loadStores() {
+            try {
+                const response = await fetch(`${API_URL}/stores`);
+                const data = await response.json();
+                
+                const select = document.getElementById('storeId');
+                data.stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store;
+                    option.textContent = store;
+                    select.appendChild(option);
+                });
+                
+                // Set default to first store
+                if (data.stores.length > 0) {
+                    select.value = data.stores[0];
+                }
+            } catch (error) {
+                showError('Failed to load stores: ' + error.message);
+            }
+        }
+        
+        async function runPrediction() {
+            const runBtn = document.getElementById('runBtn');
+            const loadBtn = document.getElementById('loadBtn');
+            const statusBox = document.getElementById('statusBox');
+            
+            // Disable buttons
+            runBtn.disabled = true;
+            loadBtn.disabled = true;
+            
+            // Show status
+            statusBox.className = 'status-box status-running';
+            statusBox.innerHTML = '⏳ Running prediction... This may take a few minutes.';
+            statusBox.style.display = 'block';
+            
+            try {
+                const response = await fetch(`${API_URL}/run-prediction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Start checking status
+                    checkPredictionStatus();
+                } else {
+                    throw new Error(data.message || 'Failed to start prediction');
+                }
+                
+            } catch (error) {
+                statusBox.className = 'status-box error';
+                statusBox.innerHTML = '❌ Error: ' + error.message;
+                runBtn.disabled = false;
+                loadBtn.disabled = false;
+            }
+        }
+        
+        async function checkPredictionStatus() {
+            statusCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_URL}/prediction-status`);
+                    const status = await response.json();
+                    
+                    if (!status.running) {
+                        clearInterval(statusCheckInterval);
+                        const runBtn = document.getElementById('runBtn');
+                        const loadBtn = document.getElementById('loadBtn');
+                        const statusBox = document.getElementById('statusBox');
+                        
+                        if (status.error) {
+                            statusBox.className = 'status-box error';
+                            statusBox.innerHTML = '❌ Prediction failed: ' + status.error;
+                        } else {
+                            // Fix timestamp display
+                            const lastRun = status.last_run 
+                                ? new Date(status.last_run).toLocaleString('th-TH', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                })
+                                : 'Unknown';
+                            
+                            statusBox.className = 'status-box status-success';
+                            statusBox.innerHTML = '✅ Prediction completed! Last run: ' + lastRun;
+                            
+                            // Auto-load results after 1 second
+                            setTimeout(() => {
+                                fetchPredictions();
+                            }, 1000);
+                        }
+                        
+                        runBtn.disabled = false;
+                        loadBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('Status check error:', error);
+                }
+            }, 2000);
+        }
         async function fetchPredictions() {
             const storeId = document.getElementById('storeId').value.trim();
             const productCode = document.getElementById('productCode').value.trim();
@@ -194,8 +345,7 @@
 
         // Load default predictions on page load
         window.onload = function() {
-            // Optional: auto-load on startup
-            // fetchPredictions();
+            loadStores();
         };
     </script>
 </body>
