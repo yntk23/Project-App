@@ -31,10 +31,14 @@ def get_predictions():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Build query based on parameters
+    # Build query based on parameters - เพิ่ม created_at
     if product_code:
         query = """
-            SELECT prediction_date as date, product_code, predicted_quantity as predicted_qty
+            SELECT 
+                prediction_date as date, 
+                product_code, 
+                predicted_quantity as predicted_qty,
+                created_at
             FROM predictions
             WHERE store_id = ? AND product_code = ?
             ORDER BY prediction_date DESC, rank ASC
@@ -42,7 +46,11 @@ def get_predictions():
         cursor.execute(query, (store_id, product_code))
     else:
         query = """
-            SELECT prediction_date as date, product_code, predicted_quantity as predicted_qty
+            SELECT 
+                prediction_date as date, 
+                product_code, 
+                predicted_quantity as predicted_qty,
+                created_at
             FROM predictions
             WHERE store_id = ?
             ORDER BY prediction_date DESC, rank ASC
@@ -59,7 +67,8 @@ def get_predictions():
         results.append({
             "date": row['date'],
             "product_code": row['product_code'],
-            "predicted_qty": row['predicted_qty']
+            "predicted_qty": row['predicted_qty'],
+            "created_at": row['created_at']
         })
     
     return jsonify(results)
@@ -104,25 +113,31 @@ def run_prediction():
         try:
             result = subprocess.run(
                 [
-                    sys.executable, 'main.py',  # ใช้ Python interpreter เดียวกัน
+                    sys.executable, 'main.py',
                     '--use-database',
                     '--db-url', 'sqlite:///sales_data.db'
                 ],
-                cwd=os.path.dirname(os.path.abspath(__file__)),  # ตั้ง working directory
+                cwd=os.path.dirname(os.path.abspath(__file__)),
                 timeout=900,  # 15 minutes timeout
-                text=True
+                text=True,
+                capture_output=True
             )
             
+            prediction_status["last_run"] = datetime.now().isoformat()
+            
             if result.returncode == 0:
-                prediction_status["last_run"] = datetime.now().isoformat()
                 prediction_status["error"] = None
             else:
                 prediction_status["error"] = f"Process exited with code {result.returncode}"
+                if result.stderr:
+                    prediction_status["error"] += f": {result.stderr[:200]}"
                 
         except subprocess.TimeoutExpired:
             prediction_status["error"] = "Prediction timeout after 15 minutes"
+            prediction_status["last_run"] = datetime.now().isoformat()
         except Exception as e:
             prediction_status["error"] = str(e)
+            prediction_status["last_run"] = datetime.now().isoformat()
         finally:
             prediction_status["running"] = False
     

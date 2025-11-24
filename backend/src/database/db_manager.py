@@ -7,7 +7,7 @@ Supports PostgreSQL and SQLite backends.
 import logging
 import pandas as pd
 from typing import Optional, List, Dict, Tuple
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine, text, MetaData, Table, Column, String, Integer, Float, DateTime, Date
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -202,6 +202,8 @@ class DatabaseManager:
         """
         try:
             records = []
+            current_time = datetime.now()
+            
             for store_id, products in predictions.items():
                 for rank, (prod_cd, qty) in enumerate(products, 1):
                     records.append({
@@ -209,7 +211,8 @@ class DatabaseManager:
                         'prediction_date': prediction_date.date(),
                         'rank': rank,
                         'product_code': prod_cd,
-                        'predicted_quantity': qty
+                        'predicted_quantity': qty,
+                        'created_at': current_time
                     })
             
             df = pd.DataFrame(records)

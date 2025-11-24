@@ -67,14 +67,7 @@ async function checkPredictionStatus() {
                     statusBox.innerHTML = '❌ Prediction failed: ' + status.error;
                 } else {
                     const lastRun = status.last_run 
-                        ? new Date(status.last_run).toLocaleString('th-TH', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit'
-                        })
+                        ? formatDateTime(status.last_run)
                         : 'Unknown';
                     statusBox.className = 'status-box status-success';
                     statusBox.innerHTML = '✅ Prediction completed! Last run: ' + lastRun;
@@ -121,10 +114,35 @@ function displayResults(data) {
     tableBody.innerHTML = '';
     data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row.date}</td><td>${row.product_code}</td><td>${row.predicted_qty.toLocaleString()}</td>`;
+        const createdAt = row.created_at ? formatDateTime(row.created_at) : 'N/A';
+        tr.innerHTML = `
+            <td>${row.date}</td>
+            <td>${row.product_code}</td>
+            <td>${row.predicted_qty.toLocaleString()}</td>
+            <td>${createdAt}</td>
+        `;
         tableBody.appendChild(tr);
     });
     document.getElementById('resultsTable').style.display = 'table';
+}
+
+function formatDateTime(dateTimeString) {
+    if (!dateTimeString) return 'N/A';
+    
+    try {
+        const date = new Date(dateTimeString);
+        return date.toLocaleString('th-TH', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+    } catch (error) {
+        return dateTimeString;
+    }
 }
 
 function showError(message) {
