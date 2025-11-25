@@ -140,7 +140,6 @@ def train_autoencoder(sequences: Dict, encoding_dim: int = 16, epochs: int = 50)
         raise ValueError("No sequences available for training")
     
     X = np.array(all_sequences)
-    # Target: predict moving average of last 3 days (smoother than last day only)
     y = X[:, -3:].mean(axis=1, keepdims=True)
     
     window_size = X.shape[1]
