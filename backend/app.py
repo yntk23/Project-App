@@ -31,7 +31,6 @@ def get_predictions():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Build query based on parameters - เพิ่ม created_at
     if product_code:
         query = """
             SELECT 
