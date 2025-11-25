@@ -7,7 +7,7 @@ Supports PostgreSQL and SQLite backends.
 import logging
 import pandas as pd
 from typing import Optional, List, Dict, Tuple
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from sqlalchemy import create_engine, text, MetaData, Table, Column, String, Integer, Float, DateTime, Date
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
@@ -45,7 +45,6 @@ class DatabaseManager:
     def _create_tables(self):
         """Create necessary tables if they don't exist."""
         try:
-            # Sales data table
             sales_table = Table(
                 'sales_data',
                 self.metadata,
@@ -53,7 +52,6 @@ class DatabaseManager:
                 Column('store_id', String(50), nullable=False, index=True),
                 Column('prod_cd', String(50), nullable=False, index=True),
                 Column('prod_qty', Integer, nullable=False),
-                Column('prod_amt', Float),
                 Column('bsns_dt', Date, nullable=False, index=True),
                 Column('created_at', DateTime, default=datetime.now)
             )
@@ -110,7 +108,7 @@ class DatabaseManager:
             DataFrame with sales data
         """
         try:
-            query = "SELECT store_id, prod_cd, prod_qty, prod_amt, bsns_dt FROM sales_data WHERE 1=1"
+            query = "SELECT store_id, prod_cd, prod_qty, bsns_dt FROM sales_data WHERE 1=1"
             params = {}
             
             if store_id:
@@ -129,12 +127,10 @@ class DatabaseManager:
             
             df = pd.read_sql(text(query), self.engine, params=params)
             
-            # Rename columns to match existing code
             df = df.rename(columns={
                 'store_id': 'STORE_ID',
                 'prod_cd': 'PROD_CD',
                 'prod_qty': 'PROD_QTY',
-                'prod_amt': 'PROD_AMT',
                 'bsns_dt': 'BSNS_DT'
             })
             
@@ -162,8 +158,8 @@ class DatabaseManager:
             # Read CSV
             df = pd.read_csv(csv_path)
             
-            # Clean and prepare data
-            df = df[['STORE_ID', 'PROD_CD', 'PROD_QTY', 'PROD_AMT', 'BSNS_DT']].copy()
+            required_cols = ['STORE_ID', 'PROD_CD', 'PROD_QTY', 'BSNS_DT']
+            df = df[required_cols].copy()
             df['BSNS_DT'] = pd.to_datetime(df['BSNS_DT']).dt.date
             df.columns = df.columns.str.lower()
             
