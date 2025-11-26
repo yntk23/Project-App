@@ -38,7 +38,7 @@ python start_frontend.py
 💡 To access the web interface:
    1. Open a NEW terminal
    2. Navigate to frontend folder: cd frontend
-   3. Run: python -m http.server 8000
+   3. Run: python start_frontend.py
    4. Open browser: http://localhost:8000
 ============================================================
 ```

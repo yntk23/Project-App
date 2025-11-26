@@ -168,7 +168,7 @@ if __name__ == '__main__':
     print("💡 To access the web interface:")
     print("   1. Open a NEW terminal")
     print("   2. Navigate to frontend folder: cd frontend")
-    print("   3. Run: python -m http.server 8000")
+    print("   3. Run: python start_frontend.py")
     print("   4. Open browser: http://localhost:8000")
     print("="*60 + "\n")
     
