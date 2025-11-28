@@ -243,14 +243,20 @@ function displayComparison(data) {
     const tbody = document.getElementById('comparisonBody');
     tbody.innerHTML = '';
     
-    data.slice(0, 20).forEach(row => {  // Show top 20 products
+    console.log('[DEBUG] Comparison data:', data);
+    
+    data.sort((a, b) => b.ensemble - a.ensemble);
+    
+    data.slice(0, 20).forEach((row, index) => {  // Show top 20 products
+        console.log(`[DEBUG] Row ${index}:`, row);
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${row.prod_cd}</strong></td>
-            <td class="comparison-cell model-ensemble">${row.ensemble.toLocaleString()}</td>
-            <td class="comparison-cell model-autoencoder">${row.autoencoder.toLocaleString()}</td>
-            <td class="comparison-cell model-exp">${row.exp_smoothing.toLocaleString()}</td>
-            <td class="comparison-cell model-linear">${row.linear_regression.toLocaleString()}</td>
+            <td><strong>${row.product_code || row.prod_cd || 'N/A'}</strong></td>
+            <td class="comparison-cell model-ensemble">${(row.ensemble || 0).toLocaleString()}</td>
+            <td class="comparison-cell model-autoencoder">${(row.autoencoder || 0).toLocaleString()}</td>
+            <td class="comparison-cell model-exp">${(row.exp_smoothing || 0).toLocaleString()}</td>
+            <td class="comparison-cell model-linear">${(row.linear_regression || 0).toLocaleString()}</td>
         `;
         tbody.appendChild(tr);
     });

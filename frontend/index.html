@@ -382,7 +382,18 @@
         </div>
         
         <!-- Tab Content: Comparison -->
+        <!-- Tab Content: Comparison -->
         <div id="comparison-tab" class="tab-content">
+            <div style="margin-bottom: 15px;">
+                <label for="sortBy" style="font-weight: 600; margin-right: 10px;">Sort by:</label>
+                <select id="sortBy" onchange="sortComparison()" style="padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px;">
+                    <option value="ensemble">Ensemble (Default)</option>
+                    <option value="autoencoder">Autoencoder</option>
+                    <option value="exp_smoothing">Exp Smoothing</option>
+                    <option value="linear_regression">Linear Regression</option>
+                </select>
+            </div>
+            
             <div id="comparisonLoading" class="loading" style="display: none;">
                 <div class="spinner"></div>
                 Loading comparison data...

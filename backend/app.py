@@ -115,8 +115,11 @@ def get_model_comparison():
 def get_model_predictions_detail(store_id):
     """Get detailed predictions from all models for a store"""
     try:
-        # โหลด comparison CSV ล่าสุด
-        output_dir = 'backend/output'
+        # โหลด comparison CSV ล่าสุด - ใช้ absolute path
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.join(backend_dir, 'output')
+        
+        print(f"[DEBUG] Searching in: {output_dir}")
         latest_file = None
         latest_time = 0
         
@@ -124,17 +127,40 @@ def get_model_predictions_detail(store_id):
             for file in files:
                 if file.startswith('model_comparison_') and file.endswith('.csv'):
                     filepath = os.path.join(root, file)
+                    print(f"[DEBUG] Found file: {filepath}")
                     mtime = os.path.getmtime(filepath)
                     if mtime > latest_time:
                         latest_time = mtime
                         latest_file = filepath
         
+        print(f"[DEBUG] Latest file: {latest_file}")
+        
         if not latest_file:
-            return jsonify({"error": "No comparison data available"}), 404
+            return jsonify({
+                "error": "No comparison data available",
+                "searched_directory": output_dir,
+                "message": "Please run prediction first"
+            }), 404
         
         import pandas as pd
         df = pd.read_csv(latest_file)
-        df_store = df[df['Store_ID'] == store_id]
+        
+        print(f"[DEBUG] CSV columns: {df.columns.tolist()}")
+        
+        # แปลง Store_ID เป็น string
+        df['Store_ID'] = df['Store_ID'].astype(str)
+        df_store = df[df['Store_ID'] == str(store_id)]
+        
+        print(f"[DEBUG] Store {store_id}: Found {len(df_store)} products")
+        
+        if len(df_store) == 0:
+            available_stores = df['Store_ID'].unique().tolist()[:20]
+            return jsonify({
+                "error": f"No data found for store {store_id}",
+                "available_stores": available_stores,
+                "total_stores": len(df['Store_ID'].unique()),
+                "file_used": latest_file
+            }), 404
         
         results = []
         for _, row in df_store.iterrows():
@@ -149,7 +175,12 @@ def get_model_predictions_detail(store_id):
         return jsonify(results)
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }), 500
 
 @app.route('/run-prediction', methods=['POST'])
 def run_prediction():
