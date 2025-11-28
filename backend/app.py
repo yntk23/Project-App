@@ -115,61 +115,41 @@ def get_model_comparison():
 def get_model_predictions_detail(store_id):
     """Get detailed predictions from all models for a store"""
     try:
-        # โหลด comparison CSV ล่าสุด - ใช้ absolute path
-        backend_dir = os.path.dirname(os.path.abspath(__file__))
-        output_dir = os.path.join(backend_dir, 'output')
+        # Get from database
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        print(f"[DEBUG] Searching in: {output_dir}")
-        latest_file = None
-        latest_time = 0
+        # Get latest prediction date for this store
+        cursor.execute("""
+            SELECT store_id, prod_cd, ensemble, autoencoder, exp_smoothing, linear_regression
+            FROM model_comparison
+            WHERE store_id = ? 
+            AND prediction_date = (
+                SELECT MAX(prediction_date) 
+                FROM model_comparison 
+                WHERE store_id = ?
+            )
+            ORDER BY ensemble DESC
+        """, (store_id, store_id))
         
-        for root, dirs, files in os.walk(output_dir):
-            for file in files:
-                if file.startswith('model_comparison_') and file.endswith('.csv'):
-                    filepath = os.path.join(root, file)
-                    print(f"[DEBUG] Found file: {filepath}")
-                    mtime = os.path.getmtime(filepath)
-                    if mtime > latest_time:
-                        latest_time = mtime
-                        latest_file = filepath
+        rows = cursor.fetchall()
+        conn.close()
         
-        print(f"[DEBUG] Latest file: {latest_file}")
-        
-        if not latest_file:
+        if not rows:
             return jsonify({
                 "error": "No comparison data available",
-                "searched_directory": output_dir,
-                "message": "Please run prediction first"
-            }), 404
-        
-        import pandas as pd
-        df = pd.read_csv(latest_file)
-        
-        print(f"[DEBUG] CSV columns: {df.columns.tolist()}")
-        
-        # แปลง Store_ID เป็น string
-        df['Store_ID'] = df['Store_ID'].astype(str)
-        df_store = df[df['Store_ID'] == str(store_id)]
-        
-        print(f"[DEBUG] Store {store_id}: Found {len(df_store)} products")
-        
-        if len(df_store) == 0:
-            available_stores = df['Store_ID'].unique().tolist()[:20]
-            return jsonify({
-                "error": f"No data found for store {store_id}",
-                "available_stores": available_stores,
-                "total_stores": len(df['Store_ID'].unique()),
-                "file_used": latest_file
+                "message": "Please run prediction first",
+                "store_id": store_id
             }), 404
         
         results = []
-        for _, row in df_store.iterrows():
+        for row in rows:
             results.append({
                 'prod_cd': row['prod_cd'],
-                'ensemble': int(row['Ensemble']),
-                'autoencoder': int(row['Autoencoder']),
-                'exp_smoothing': int(row['Exp_Smoothing']),
-                'linear_regression': int(row['Linear_Regression'])
+                'ensemble': int(row['ensemble']),
+                'autoencoder': int(row['autoencoder']),
+                'exp_smoothing': int(row['exp_smoothing']),
+                'linear_regression': int(row['linear_regression'])
             })
         
         return jsonify(results)

@@ -83,11 +83,96 @@ class DatabaseManager:
                 Column('created_at', DateTime, default=datetime.now)
             )
             
+            # Model comparison table
+            model_comparison_table = Table(
+                'model_comparison',
+                self.metadata,
+                Column('id', Integer, primary_key=True, autoincrement=True),
+                Column('store_id', String(50), nullable=False, index=True),
+                Column('prod_cd', String(50), nullable=False, index=True),
+                Column('ensemble', Integer, nullable=False),
+                Column('autoencoder', Integer, nullable=False),
+                Column('exp_smoothing', Integer, nullable=False),
+                Column('linear_regression', Integer, nullable=False),
+                Column('prediction_date', Date, nullable=False, index=True),
+                Column('created_at', DateTime, default=datetime.now)
+            )
+            
             self.metadata.create_all(self.engine)
             logger.info("Database tables created/verified")
             
         except SQLAlchemyError as e:
             logger.error(f"Failed to create tables: {e}")
+            raise
+        
+    def save_model_comparison(
+        self,
+        comparison_data: Dict[str, Dict[str, Dict[str, int]]],
+        prediction_date: pd.Timestamp
+    ) -> int:
+        """
+        Save model comparison data to database.
+        
+        Args:
+            comparison_data: Dict[store_id][prod_cd] = {'ensemble': x, 'autoencoder': y, ...}
+            prediction_date: Date for predictions
+            
+        Returns:
+            Number of records saved
+        """
+        try:
+            records = []
+            current_time = datetime.now()
+            
+            for store_id, products in comparison_data.items():
+                for prod_cd, model_values in products.items():
+                    records.append({
+                        'store_id': store_id,
+                        'prod_cd': prod_cd,
+                        'ensemble': model_values.get('ensemble', 0),
+                        'autoencoder': model_values.get('autoencoder', 0),
+                        'exp_smoothing': model_values.get('exp_smoothing', 0),
+                        'linear_regression': model_values.get('linear_regression', 0),
+                        'prediction_date': prediction_date.date(),
+                        'created_at': current_time
+                    })
+            
+            if records:
+                df = pd.DataFrame(records)
+                df.to_sql('model_comparison', self.engine, if_exists='append', index=False)
+                logger.info(f"Saved {len(records)} model comparison records to database")
+            
+            return len(records)
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to save model comparison: {e}")
+            raise
+    
+    def get_model_comparison(self, store_id: str, prediction_date: Optional[str] = None) -> pd.DataFrame:
+        """Get model comparison data for a store"""
+        try:
+            query = """
+                SELECT store_id, prod_cd, ensemble, autoencoder, exp_smoothing, linear_regression, prediction_date
+                FROM model_comparison
+                WHERE store_id = :store_id
+            """
+            params = {'store_id': store_id}
+            
+            if prediction_date:
+                query += " AND prediction_date = :prediction_date"
+                params['prediction_date'] = prediction_date
+            else:
+                # Get latest prediction date
+                query += " AND prediction_date = (SELECT MAX(prediction_date) FROM model_comparison WHERE store_id = :store_id)"
+            
+            query += " ORDER BY ensemble DESC"
+            
+            df = pd.read_sql(text(query), self.engine, params=params)
+            logger.info(f"Retrieved {len(df)} model comparison records for store {store_id}")
+            return df
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get model comparison: {e}")
             raise
     
     def load_sales_data(

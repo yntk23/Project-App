@@ -477,6 +477,11 @@ def train_recommender(
         # 13. Save to database
         if use_database and db_manager:
             db_manager.save_predictions(prediction_results, next_date)
+            
+            # Save model comparison to database
+            db_manager.save_model_comparison(store_predictions_detail, next_date)
+            logger.info("Model comparison saved to database")
+            
             db_manager.save_model_metadata(
                 next_date,
                 f'{selected_model.title()} Model',

@@ -27,9 +27,9 @@ class PredictionConfig:
         
         if self.ensemble_weights is None:
             self.ensemble_weights = {
-                'autoencoder': 0.4,
-                'exp_smoothing': 0.3,
-                'linear_regression': 0.3
+                'autoencoder': 0.2,
+                'exp_smoothing': 0.2,
+                'linear_regression': 0.6
             }
 
 
