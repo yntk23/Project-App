@@ -64,7 +64,7 @@ class DatabaseManager:
                 Column('store_id', String(50), nullable=False, index=True),
                 Column('prediction_date', Date, nullable=False, index=True),
                 Column('rank', Integer, nullable=False),
-                Column('product_code', String(50), nullable=False),
+                Column('prod_cd', String(50), nullable=False),
                 Column('predicted_quantity', Integer, nullable=False),
                 Column('created_at', DateTime, default=datetime.now)
             )
@@ -190,7 +190,7 @@ class DatabaseManager:
         Save predictions to database.
         
         Args:
-            predictions: Dictionary mapping store_id to list of (product_code, quantity) tuples
+            predictions: Dictionary mapping store_id to list of (prod_cd, quantity) tuples
             prediction_date: Date for which predictions were made
             
         Returns:
@@ -206,7 +206,7 @@ class DatabaseManager:
                         'store_id': store_id,
                         'prediction_date': prediction_date.date(),
                         'rank': rank,
-                        'product_code': prod_cd,
+                        'prod_cd': prod_cd,
                         'predicted_quantity': qty,
                         'created_at': current_time
                     })
@@ -262,7 +262,7 @@ class DatabaseManager:
         """
         try:
             query = """
-                SELECT store_id, prediction_date, rank, product_code, predicted_quantity
+                SELECT store_id, prediction_date, rank, prod_cd, predicted_quantity
                 FROM predictions
                 WHERE prediction_date = (SELECT MAX(prediction_date) FROM predictions)
             """

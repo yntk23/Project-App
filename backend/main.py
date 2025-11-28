@@ -1,7 +1,6 @@
 """
-Main entry point for the time series prediction system.
-
-This script initializes the system and runs the next-day prediction pipeline.
+Main entry point with Ensemble Model Selection
+Path: backend/main.py
 """
 
 import os
@@ -9,7 +8,6 @@ import sys
 import argparse
 from typing import Optional
 
-# Add src to path for imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.config import config
@@ -21,26 +19,21 @@ def main(
     data_path: Optional[str] = None, 
     log_level: str = "INFO",
     use_database: bool = False,
-    db_url: Optional[str] = None
+    db_url: Optional[str] = None,
+    selected_model: str = 'ensemble'
 ) -> None:
     """
-    Main function to run the prediction system.
+    Main function with model selection
     
     Args:
-        data_path: Path to the data file (uses config default if None)
-        log_level: Logging level
-        use_database: Whether to use database instead of CSV
-        db_url: Database connection URL
+        selected_model: 'ensemble', 'autoencoder', 'exp_smoothing', 'linear_regression'
     """
-    # Set up logging
     logger = setup_logging(log_level)
     
     try:
-        # Use config default if no path provided
         if data_path is None:
             data_path = os.path.join(os.path.dirname(__file__), config.data_path)
         
-        # Validate data source
         if not use_database:
             if not os.path.exists(data_path):
                 logger.error(f"Data file not found: {data_path}")
@@ -49,23 +42,32 @@ def main(
         else:
             logger.info(f"Using database: {db_url}")
         
-        logger.info("Starting time series prediction system with Autoencoder")
+        logger.info(f"Starting prediction system with {selected_model.upper()} model")
         logger.info(f"Configuration: {config}")
         
-        # Run the prediction pipeline
-        predictions, next_date = train_recommender(
+        # Run prediction
+        predictions, next_date, comparison_data = train_recommender(
             data_path=data_path,
             use_database=use_database,
-            db_url=db_url
+            db_url=db_url,
+            selected_model=selected_model
         )
         
-        # Print summary results
+        # Print summary
         logger.info("=== PREDICTION SUMMARY ===")
+        logger.info(f"Model used: {selected_model.upper()}")
         logger.info(f"Generated predictions for {len(predictions)} stores")
         logger.info(f"Prediction date: {next_date.strftime('%Y-%m-%d')}")
         
-        # Print sample predictions (only 3 stores for console)
+        # Print model comparison
+        if 'metrics' in comparison_data:
+            logger.info("\n=== MODEL PERFORMANCE ===")
+            for metric in comparison_data['metrics']:
+                logger.info(f"{metric['model']}: MAE={metric['mae']:.2f}, RMSE={metric['rmse']:.2f}, MAPE={metric['mape']:.2f}%")
+        
+        # Sample predictions
         sample_stores = list(predictions.keys())[:3]
+        logger.info("\n=== SAMPLE PREDICTIONS ===")
         for store_id in sample_stores:
             top_products = predictions[store_id]
             products_str = ", ".join([f"{prod}({qty})" for prod, qty in top_products])
@@ -74,16 +76,12 @@ def main(
         if len(predictions) > 3:
             logger.info(f"... and {len(predictions) - 3} more stores")
         
-        logger.info("=== PREDICTION DETAILS ===")
-        logger.info(f"Moving average window: {config.prediction.moving_average_window} days")
-        logger.info(f"Top products per store: {config.prediction.top_n_products}")
+        logger.info("\n=== OUTPUT FILES ===")
+        logger.info("✅ Predictions CSV: output/YYYY-MM-DD/next_day_top5_YYYYMMDD.csv")
+        logger.info("✅ Model Comparison: output/YYYY-MM-DD/model_comparison_YYYYMMDD.csv")
+        logger.info("✅ Metrics JSON: output/models/ensemble_comparison.json")
         
-        logger.info("=== OUTPUT FILES ===")
-        logger.info("Check the 'output/YYYY-MM-DD/' directory for:")
-        logger.info("• CSV files organized by date for easy analysis and data import")
-        logger.info("• All 27 stores' predictions are included")
-        
-        logger.info("Time series prediction system completed successfully")
+        logger.info("\nPrediction system completed successfully")
         
     except Exception as e:
         logger.error(f"Error in main execution: {e}")
@@ -91,25 +89,17 @@ def main(
 
 
 def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Time Series Product Prediction System")
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="Ensemble Prediction System")
     
-    parser.add_argument(
-        '--data-path',
-        type=str,
-        help='Path to the data CSV file'
-    )
-    
-    parser.add_argument(
-        '--log-level',
-        type=str,
-        default='INFO',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help='Logging level'
-    )
-    
-    parser.add_argument('--use-database', action='store_true', help='Use database instead of CSV')
-    parser.add_argument('--db-url', type=str, help='Database URL (e.g., postgresql://user:pass@host/db)')
+    parser.add_argument('--data-path', type=str, help='Path to CSV file')
+    parser.add_argument('--log-level', type=str, default='INFO',
+                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+    parser.add_argument('--use-database', action='store_true', help='Use database')
+    parser.add_argument('--db-url', type=str, help='Database URL')
+    parser.add_argument('--model', type=str, default='ensemble',
+                       choices=['ensemble', 'autoencoder', 'exp_smoothing', 'linear_regression'],
+                       help='Model to use for prediction')
     
     return parser.parse_args()
 
@@ -121,5 +111,6 @@ if __name__ == "__main__":
         data_path=args.data_path,
         log_level=args.log_level,
         use_database=args.use_database,
-        db_url=args.db_url
+        db_url=args.db_url,
+        selected_model=args.model
     )

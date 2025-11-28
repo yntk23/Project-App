@@ -21,7 +21,7 @@ def save_prediction_results(
     Save prediction results to CSV file organized by date.
     
     Args:
-        prediction_results: Dictionary mapping store_id to list of (product_code, predicted_quantity) tuples
+        prediction_results: Dictionary mapping store_id to list of (prod_cd, predicted_quantity) tuples
         next_date: The date for which predictions were made
         output_dir: Base output directory
         
@@ -37,7 +37,7 @@ def save_prediction_results(
         output_file = os.path.join(date_output_dir, f"next_day_top5_{next_date.strftime('%Y%m%d')}.csv")
         
         with open(output_file, "w") as f:
-            f.write("Store_ID,Prediction_Date,Rank,Product_Code,Predicted_Quantity\n")
+            f.write("Store_ID,Prediction_Date,Rank,prod_cd,Predicted_Quantity\n")
             for store_id, top5 in prediction_results.items():
                 for rank, (prod_cd, qty) in enumerate(top5, 1):
                     f.write(f"{store_id},{next_date.strftime('%Y-%m-%d')},{rank},{prod_cd},{qty}\n")

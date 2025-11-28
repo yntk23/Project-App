@@ -67,7 +67,7 @@ def export_recommendations_to_excel(
                     detailed_data.append({
                         'Store_ID': store_id,
                         'Recommendation_Rank': rank,
-                        'Product_Code': product
+                        'prod_cd': product
                     })
             
             detailed_df = pd.DataFrame(detailed_data)
@@ -101,7 +101,7 @@ def export_recommendations_to_excel(
             
             for product, count in top_products:
                 store_stats.append({
-                    'Product_Code': product,
+                    'prod_cd': product,
                     'Times_Recommended': count,
                     'Percentage_of_Stores': f"{count/len(recommendations)*100:.1f}%"
                 })
@@ -186,7 +186,7 @@ def export_recommendations_to_csv(
                 detailed_data.append({
                     'Store_ID': store_id,
                     'Recommendation_Rank': rank,
-                    'Product_Code': product,
+                    'prod_cd': product,
                     'Recommended_Order_Quantity': qty if qty else "N/A"
                 })
         
