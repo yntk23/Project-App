@@ -89,7 +89,7 @@
 			"response": []
 		},
 		{
-			"name": "modelPredictions",
+			"name": "getModelPredictions",
 			"request": {
 				"method": "GET",
 				"header": [],

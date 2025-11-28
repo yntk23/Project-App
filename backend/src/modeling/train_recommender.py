@@ -147,7 +147,6 @@ class LinearRegressionModel:
         X_scaled = self.scaler.fit_transform(X_features)
         self.model.fit(X_scaled, y_train.ravel())
         self.is_fitted = True
-        logger.info("Linear Regression trained")
     
     def predict_batch(self, sequences):
         """Batch prediction"""
