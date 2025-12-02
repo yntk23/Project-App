@@ -369,6 +369,59 @@ def train_recommender(
         all_metrics.append(ensemble.calculate_metrics(y_true, linear_pred, 'Linear Regression'))
         all_metrics.append(ensemble.calculate_metrics(y_true, ensemble_pred, 'Ensemble'))
         
+        # 🆕 เพิ่มส่วนนี้: เรียก suggest_weights() เพื่อแสดงผลใน log
+        logger.info("\n" + "=" * 60)
+        logger.info("WEIGHT ANALYSIS")
+        logger.info("=" * 60)
+        
+        try:
+            # คำนวณ suggested weights โดยตรงจาก metrics ที่เพิ่งคำนวณ
+            model_metrics_only = {m['model']: m for m in all_metrics if m['model'] != 'Ensemble'}
+            
+            if len(model_metrics_only) >= 3:
+                # คำนวณ inverse MAE
+                inverse_errors = {name: 1 / (m['mae'] + 1) for name, m in model_metrics_only.items()}
+                total = sum(inverse_errors.values())
+                suggested_weights = {name: val / total for name, val in inverse_errors.items()}
+                
+                # แมป name เป็น key ที่ใช้จริง
+                weight_mapping = {
+                    'Autoencoder': 'autoencoder',
+                    'Exponential Smoothing': 'exp_smoothing',
+                    'Linear Regression': 'linear_regression'
+                }
+                
+                logger.info("Current weights in use:")
+                for name in model_metrics_only.keys():
+                    key = weight_mapping[name]
+                    current = ensemble.weights.get(key, 0.333)
+                    logger.info(f"  {name:25s}: {current:.3f}")
+                
+                logger.info("\nSuggested weights (based on MAE performance):")
+                for name, weight in suggested_weights.items():
+                    key = weight_mapping[name]
+                    current = ensemble.weights.get(key, 0.333)
+                    change = weight - current
+                    
+                    # เลือก emoji ตามการเปลี่ยนแปลง
+                    if change > 0.05:
+                        arrow = "📈"
+                    elif change < -0.05:
+                        arrow = "📉"
+                    else:
+                        arrow = "➡️"
+                    
+                    logger.info(f"  {arrow} {name:25s}: {weight:.3f} (change: {change:+.3f})")
+                
+                logger.info("\nNote: Weights remain unchanged. Use suggested values manually if needed.")
+            else:
+                logger.warning("Insufficient metrics for weight suggestion")
+                
+        except Exception as e:
+            logger.warning(f"Could not calculate suggested weights: {e}")
+        
+        logger.info("=" * 60 + "\n")
+        
         # 7. Save all predictions
         all_predictions = {
             'autoencoder': autoencoder_pred,
