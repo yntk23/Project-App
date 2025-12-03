@@ -494,6 +494,16 @@ def train_recommender(
                 }, f, indent=2)
             
             logger.info(f"Models saved to {save_dir}")
+            
+            try:
+                logger.info("Creating model comparison plot...")
+                from src.modeling.model_evaluator import ModelEvaluator
+                evaluator = ModelEvaluator(comparison_file=os.path.join(save_dir, 'ensemble_comparison.json'))
+                plot_path = os.path.join(save_dir, 'model_comparison.png')
+                evaluator.plot_comparison(save_path=plot_path)
+                logger.info(f"✅ Plot saved to {plot_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not create plot: {e}")
         
         # 12. Save to CSV
         output_dir = config.output_path
