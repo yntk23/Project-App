@@ -369,13 +369,11 @@ def train_recommender(
         all_metrics.append(ensemble.calculate_metrics(y_true, linear_pred, 'Linear Regression'))
         all_metrics.append(ensemble.calculate_metrics(y_true, ensemble_pred, 'Ensemble'))
         
-        # 🆕 เพิ่มส่วนนี้: เรียก suggest_weights() เพื่อแสดงผลใน log
         logger.info("\n" + "=" * 60)
         logger.info("WEIGHT ANALYSIS")
         logger.info("=" * 60)
         
         try:
-            # คำนวณ suggested weights โดยตรงจาก metrics ที่เพิ่งคำนวณ
             model_metrics_only = {m['model']: m for m in all_metrics if m['model'] != 'Ensemble'}
             
             if len(model_metrics_only) >= 3:
@@ -403,7 +401,6 @@ def train_recommender(
                     current = ensemble.weights.get(key, 0.333)
                     change = weight - current
                     
-                    # เลือก emoji ตามการเปลี่ยนแปลง
                     if change > 0.05:
                         arrow = "📈"
                     elif change < -0.05:
